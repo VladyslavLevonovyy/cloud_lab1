@@ -37,7 +37,11 @@ def init_db():
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok"})
+    return jsonify({
+        "status": "ok",
+        "version": "2.0",
+        "message": "Deployed automatically with GitHub Actions"
+    })
 
 
 @app.route("/clients", methods=["GET"])
