@@ -2,6 +2,7 @@
 import os
 import pymysql
 from flask import Flask, jsonify, request
+from waitress import serve
 
 app = Flask(__name__)
 
@@ -17,6 +18,23 @@ def get_connection():
     )
 
 
+def init_db():
+    connection = get_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS clients (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    age INT
+                )
+            """)
+        connection.commit()
+    finally:
+        connection.close()
+
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
@@ -30,6 +48,7 @@ def get_clients():
         with connection.cursor() as cursor:
             cursor.execute("SELECT id, name, age FROM clients")
             clients = cursor.fetchall()
+
         return jsonify(clients)
     finally:
         connection.close()
@@ -50,6 +69,7 @@ def add_client():
                 "INSERT INTO clients (name, age) VALUES (%s, %s)",
                 (data["name"], data.get("age"))
             )
+
             client_id = cursor.lastrowid
 
         connection.commit()
@@ -64,4 +84,5 @@ def add_client():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    init_db()
+    serve(app, host="0.0.0.0", port=5000)

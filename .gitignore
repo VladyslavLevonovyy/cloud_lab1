@@ -12,3 +12,9 @@ terraform.tfvars
 __pycache__/
 *.pyc
 .venv/
+
+*.tfplan
+*.tfvars.json
+*.pem
+*accessKeys*.csv
+*access_keys*.csv

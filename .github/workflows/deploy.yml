@@ -1,0 +1,59 @@
+
+name: Deploy to AWS ECS
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $REGISTRY/levonovyi-gym-api:$IMAGE_TAG .
+          docker push $REGISTRY/levonovyi-gym-api:$IMAGE_TAG
+
+      - name: Download current task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition levonovyi-gym-api \
+            --query taskDefinition > task-definition.json
+
+      - name: Render new task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: gym-api
+          image: ${{ steps.login-ecr.outputs.registry }}/levonovyi-gym-api:${{ github.sha }}
+
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: levonovyi-gym-service
+          cluster: levonovyi-gym-cluster
+          wait-for-service-stability: true
